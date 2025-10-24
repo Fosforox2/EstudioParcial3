@@ -1,0 +1,123 @@
+// -----------------------------------------------------------
+// index.ts
+// API REST sencilla con Express + cliente Axios de prueba
+// -----------------------------------------------------------
+
+// Cargamos dependencias de forma directa (sin complicar con imports/exports)
+const express = require("express");
+const axios = require("axios");
+
+const app = express();
+const PORT = 3000;
+
+app.use(express.json()); // necesario para leer body en POST
+
+// -----------------------------------------------------------
+// Tipo e inicialización de datos
+// -----------------------------------------------------------
+
+// Tipo base — puedes ampliarlo con más campos si quieres
+type Item = {
+  id: number;
+  title: string;
+  category: string;
+  region: string;
+  duration: number;
+  format: string;
+};
+
+// Simulamos una "base de datos" temporal
+let items: Item[] = [
+  { id: 1, title: "Alpha", category: "Sci-Fi", region: "EU", duration: 120, format: "PAL" },
+  { id: 2, title: "Beta", category: "Action", region: "US", duration: 95, format: "NTSC" },
+];
+
+// -----------------------------------------------------------
+// Endpoints mínimos (GET, POST, DELETE)
+// -----------------------------------------------------------
+
+// Mostrar todos los discos
+app.get("/d", (_req, res) => {
+  res.json(items);
+});
+
+// Mostrar un disco por ID
+app.get("/d/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const found = items.find((i) => i.id === id);
+  if (!found) return res.status(404).json({ message: "Disco no encontrado" });
+  res.json(found);
+});
+
+// Guardar un nuevo disco
+app.post("/d", (req, res) => {
+  const body = req.body;
+  const newItem: Item = { id: Date.now(), ...body };
+  items.push(newItem);
+  res.status(201).json(newItem);
+});
+
+// Eliminar un disco por ID
+app.delete("/d/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const index = items.findIndex((i) => i.id === id);
+  if (index === -1) return res.status(404).json({ message: "Disco no encontrado" });
+  const deleted = items.splice(index, 1)[0];
+  res.json(deleted);
+});
+
+// -----------------------------------------------------------
+// Arranque del servidor
+// -----------------------------------------------------------
+
+app.listen(PORT, () => {
+  console.log(`Servidor activo en http://localhost:${PORT}`);
+});
+
+// -----------------------------------------------------------
+// Cliente con Axios: testApi()
+// -----------------------------------------------------------
+
+// Esta función se ejecuta automáticamente tras 1s para probar la API.
+// Si no la quieres ejecutar siempre, comenta el setTimeout del final.
+async function testApi() {
+  const baseURL = `http://localhost:${PORT}`;
+  const api = axios.create({ baseURL });
+
+  try {
+    console.log("\n--- Paso 1: Obtener lista inicial ---");
+    let res = await api.get("/d");
+    console.log(res.data);
+
+    console.log("\n--- Paso 2: Crear un nuevo disco ---");
+    const nuevo = {
+      title: "Gamma",
+      category: "Drama",
+      region: "JP",
+      duration: 110,
+      format: "PAL",
+    };
+    const creado = await api.post("/d", nuevo);
+    console.log("Creado:", creado.data);
+
+    console.log("\n--- Paso 3: Volver a obtener todos ---");
+    res = await api.get("/d");
+    console.log(res.data);
+
+    console.log("\n--- Paso 4: Eliminar el nuevo disco ---");
+    const idToDelete = creado.data.id;
+    const eliminado = await api.delete(`/d/${idToDelete}`);
+    console.log("Eliminado:", eliminado.data);
+
+    console.log("\n--- Paso 5: Mostrar lista final ---");
+    res = await api.get("/d");
+    console.log(res.data);
+
+    console.log("\n✅ Test API completado correctamente");
+  } catch (err: any) {
+    console.error("❌ Error durante las pruebas:", err.message);
+  }
+}
+
+// Espera un segundo tras iniciar el servidor para evitar colisiones
+setTimeout(testApi, 1000);
