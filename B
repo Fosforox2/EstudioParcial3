@@ -1,0 +1,115 @@
+// -----------------------------------------------------------
+// index.ts
+// API REST mínima en Express con datos simulados en memoria
+// -----------------------------------------------------------
+
+const express = require("express");
+const app = express();
+
+// Puerto por defecto (puedes cambiarlo si ya tienes algo en 3000)
+const PORT = 3000;
+
+// Middleware para parsear JSON (necesario para POST)
+app.use(express.json());
+
+// -----------------------------------------------------------
+// Datos simulados en memoria
+// -----------------------------------------------------------
+
+// Estructura base de un "disco" o item genérico
+type Item = {
+  id: number;
+  title: string;
+  category: string;
+  region: string;
+  duration: number;
+  format: string;
+};
+
+// Array de ejemplo — esto sería tu “base de datos” temporal
+let items: Item[] = [
+  { id: 1, title: "Alpha", category: "Sci-Fi", region: "EU", duration: 120, format: "PAL" },
+  { id: 2, title: "Beta", category: "Action", region: "US", duration: 95, format: "NTSC" },
+];
+
+// -----------------------------------------------------------
+// Rutas básicas
+// -----------------------------------------------------------
+
+// GET /d → devuelve todo el array
+app.get("/d", (_req, res) => {
+  res.json(items);
+});
+
+// GET /d/:id → busca por ID
+app.get("/d/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const found = items.find((i) => i.id === id);
+  if (!found) return res.status(404).json({ message: "Disco no encontrado" });
+  res.json(found);
+});
+
+// POST /d → añade un nuevo disco
+app.post("/d", (req, res) => {
+  const body = req.body;
+  const newItem: Item = {
+    id: Date.now(), // se podría cambiar por un contador incremental si prefieres
+    ...body,
+  };
+  items.push(newItem);
+  res.status(201).json(newItem);
+});
+
+// DELETE /d/:id → elimina por ID
+app.delete("/d/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const index = items.findIndex((i) => i.id === id);
+  if (index === -1) return res.status(404).json({ message: "Disco no encontrado" });
+
+  const deleted = items.splice(index, 1)[0];
+  res.json(deleted);
+});
+
+// -----------------------------------------------------------
+// Inicio del servidor
+// -----------------------------------------------------------
+
+app.listen(PORT, () => {
+  console.log(`Servidor activo en http://localhost:${PORT}`);
+});
+
+// -----------------------------------------------------------
+// Cliente interno opcional (para probar sin Postman ni nada)
+// -----------------------------------------------------------
+
+const http = require("axios"); // se puede cambiar por fetch o lo que uses
+
+async function probar() {
+  try {
+    const base = `http://localhost:${PORT}`;
+    const nuevo = {
+      title: "Gamma",
+      category: "Drama",
+      region: "JP",
+      duration: 110,
+      format: "PAL",
+    };
+
+    // Crear uno nuevo
+    const post = await http.post(`${base}/d`, nuevo);
+    console.log("Creado:", post.data);
+
+    // Ver todos
+    const todos = await http.get(`${base}/d`);
+    console.log("Listado actual:", todos.data);
+
+    // Eliminar el recién creado
+    const eliminado = await http.delete(`${base}/d/${post.data.id}`);
+    console.log("Eliminado:", eliminado.data);
+  } catch (err: any) {
+    console.error("Error al probar la API:", err.message);
+  }
+}
+
+// Ejecuta el cliente tras un breve retraso para que dé tiempo a arrancar
+setTimeout(probar, 1000);
