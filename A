@@ -1,0 +1,118 @@
+import express, { Request, Response } from "express";
+import axios from "axios";
+
+// -----------------------------------------------------
+// Config general
+// -----------------------------------------------------
+
+const app = express();
+const PORT = 3000;
+
+// Middleware para parsear JSON en las peticiones
+app.use(express.json());
+
+// -----------------------------------------------------
+// Tipo y datos en memoria
+// -----------------------------------------------------
+
+// Tipo genérico para un item de ejemplo. 
+// Si más adelante quisieras conectarlo con una DB, bastaría con mapear estos campos.
+type Item = {
+  id: number;
+  title: string;
+  category: string;
+  region: string;
+  duration: number;
+  format: "NTSC" | "PAL" | "OTHER";
+};
+
+// Array en memoria. En un proyecto real esto se reemplaza con una base de datos o servicio externo.
+let items: Item[] = [
+  { id: 1, title: "Item de prueba", category: "demo", region: "EU", duration: 120, format: "PAL" },
+];
+
+// -----------------------------------------------------
+// Rutas CRUD
+// -----------------------------------------------------
+
+// GET - Obtener todos los items
+app.get("/items", (_req: Request, res: Response) => {
+  res.json(items);
+});
+
+// GET - Obtener un item por ID
+app.get("/items/:id", (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const item = items.find((i) => i.id === id);
+  if (!item) return res.status(404).json({ message: "Item no encontrado" });
+  res.json(item);
+});
+
+// POST - Crear un nuevo item
+app.post("/items", (req: Request, res: Response) => {
+  const newItem: Item = { id: Date.now(), ...req.body }; // Date.now() para generar IDs rápidos
+  items.push(newItem);
+  res.status(201).json(newItem);
+});
+
+// PUT - Actualizar un item existente
+app.put("/items/:id", (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const index = items.findIndex((i) => i.id === id);
+  if (index === -1) return res.status(404).json({ message: "Item no encontrado" });
+
+  // Aquí podrías hacer validaciones de tipo más estrictas si lo necesitas.
+  items[index] = { ...items[index], ...req.body };
+  res.json(items[index]);
+});
+
+// DELETE - Eliminar un item por ID
+app.delete("/items/:id", (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const index = items.findIndex((i) => i.id === id);
+  if (index === -1) return res.status(404).json({ message: "Item no encontrado" });
+
+  const deleted = items.splice(index, 1)[0];
+  res.json(deleted);
+});
+
+// -----------------------------------------------------
+// Inicializar servidor
+// -----------------------------------------------------
+
+app.listen(PORT, () => {
+  console.log(`✅ Servidor escuchando en http://localhost:${PORT}`);
+});
+
+// -----------------------------------------------------
+// Cliente Axios (solo para probar rápido desde este mismo archivo)
+// -----------------------------------------------------
+
+// Nota: esto es opcional, normalmente lo separarías en otro script.
+// Aquí se deja para demostrar cómo consumir la API sin Postman o curl.
+async function testClient() {
+  try {
+    const api = axios.create({ baseURL: `http://localhost:${PORT}` });
+
+    // Ejemplo: crear un nuevo item
+    const newItem = {
+      title: "Película de prueba",
+      category: "Cine",
+      region: "US",
+      duration: 95,
+      format: "NTSC" as const,
+    };
+
+    const postRes = await api.post("/items", newItem);
+    console.log("POST creado:", postRes.data);
+
+    // Ejemplo: obtener todos los items
+    const getRes = await api.get("/items");
+    console.log("GET todos:", getRes.data);
+  } catch (err: any) {
+    console.error("Error al probar la API:", err.message);
+  }
+}
+
+// Puedes comentar esta línea si no quieres que el cliente Axios se ejecute automáticamente
+setTimeout(testClient, 1000); // se retrasa un poco para dar tiempo a levantar el servidor
